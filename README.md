@@ -484,21 +484,6 @@ psql personal_finance_db < database_backup.sql
 node scripts/add-demo-budget-data.js
 ```
 
-### 🔧 常见协作问题 / Common Collaboration Issues
-
-**端口冲突 / Port Conflicts:**
-```bash
-# 如果端口 3001 被占用 / If port 3001 is occupied
-# 修改 server/src/index.js 中的端口号 / Change port number in server/src/index.js
-const PORT = process.env.PORT || 3002; // 使用其他端口
-```
-
-**数据库连接问题 / Database Connection Issues:**
-1. 检查 PostgreSQL 是否运行 / Check if PostgreSQL is running
-2. 验证 .env 文件配置 / Verify .env file configuration
-3. 确认数据库用户权限 / Confirm database user permissions
-
----
 
 ## 🤝 贡献指南 / Contributing
 
@@ -510,11 +495,6 @@ const PORT = process.env.PORT || 3002; // 使用其他端口
 
 ---
 
-## 📄 许可证 / License
-
-本项目采用 MIT 许可证 - 查看 [LICENSE](LICENSE) 文件了解详情 / This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
-
----
 
 ## 👨‍💻 作者 / Author
 
@@ -522,11 +502,3 @@ const PORT = process.env.PORT || 3002; // 使用其他端口
 
 **项目链接 / Project Link:** [https://github.com/meilin-N-jh/personal-finance-manager](https://github.com/meilin-N-jh/personal-finance-manager)
 
----
-
-## 🙏 致谢 / Acknowledgments
-
-- React 团队提供的优秀框架 / Excellent framework by the React team
-- Tailwind CSS 的实用样式系统 / Utility styling system by Tailwind CSS
-- PostgreSQL 的可靠数据库支持 / Reliable database support by PostgreSQL
-- 所有开源社区的贡献 / Contributions from the open-source community
