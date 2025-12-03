@@ -36,9 +36,9 @@ api.interceptors.response.use(
 );
 
 const budgetService = {
-  // Get all budgets
-  getBudgets: async () => {
-    const response = await api.get('/budgets');
+  // Get all budgets with optional filtering
+  getBudgets: async (params = {}) => {
+    const response = await api.get('/budgets', { params });
     return response.data;
   },
 
@@ -66,9 +66,39 @@ const budgetService = {
     return response.data;
   },
 
-  // Get budget summary with actual spending
+  // Get budget summary with actual spending and optional filtering
   getBudgetSummary: async (params = {}) => {
     const response = await api.get('/budgets/summary', { params });
+    return response.data;
+  },
+
+  // Get available periods for filtering
+  getBudgetPeriods: async () => {
+    const response = await api.get('/budgets/periods');
+    return response.data;
+  },
+
+  // Get budgets for specific month
+  getBudgetsForMonth: async (year, month) => {
+    const response = await api.get('/budgets', {
+      params: { year, month }
+    });
+    return response.data;
+  },
+
+  // Get budgets for specific year
+  getBudgetsForYear: async (year) => {
+    const response = await api.get('/budgets', {
+      params: { year }
+    });
+    return response.data;
+  },
+
+  // Get budgets for specific period type
+  getBudgetsForPeriod: async (period) => {
+    const response = await api.get('/budgets', {
+      params: { period }
+    });
     return response.data;
   },
 };

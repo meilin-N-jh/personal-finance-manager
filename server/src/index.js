@@ -28,13 +28,15 @@ app.use(cors({
   allowedHeaders: ['Content-Type', 'Authorization', 'Origin', 'X-Requested-With', 'Accept']
 }));
 
-// 速率限制
+// 速率限制 - 为开发环境放宽限制
 const limiter = rateLimit({
   windowMs: parseInt(process.env.RATE_LIMIT_WINDOW_MS) || 15 * 60 * 1000, // 15分钟
-  max: parseInt(process.env.RATE_LIMIT_MAX_REQUESTS) || 100, // 限制每个IP 100个请求
+  max: process.env.NODE_ENV === 'development' ? 1000 : 100, // 开发环境1000个请求，生产环境100个请求
   message: {
     error: '请求过于频繁，请稍后再试'
-  }
+  },
+  standardHeaders: true,
+  legacyHeaders: false,
 });
 app.use('/api/', limiter);
 

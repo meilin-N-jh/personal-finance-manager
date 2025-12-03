@@ -8,35 +8,42 @@ const WorkingLogin = () => {
   const [loginLoading, setLoginLoading] = useState(false);
   const [registerLoading, setRegisterLoading] = useState(false);
   const [formData, setFormData] = useState({
-    username: 'testuser',
-    password: '123456'
+    username: '',
+    password: ''
   });
+  const [error, setError] = useState('');
 
   const handleChange = (e) => {
     setFormData({
       ...formData,
       [e.target.name]: e.target.value
     });
+    // Clear error message
+    if (error) {
+      setError('');
+    }
   };
 
   const handleLogin = async (e) => {
     e.preventDefault();
 
     if (!formData.username || !formData.password) {
-      alert('请填写用户名和密码');
+      setError('Please enter username and password');
       return;
     }
 
     setLoginLoading(true);
+    setError('');
 
     try {
       const response = await login(formData);
-      console.log('登录成功:', response.data);
-      alert('登录成功！');
+      console.log('Login successful:', response.data);
+      // Clear form
+      setFormData({ username: '', password: '' });
       navigate('/dashboard');
     } catch (error) {
-      console.error('登录失败:', error);
-      alert(`登录失败: ${error.response?.data?.error || error.message}`);
+      console.error('Login failed:', error);
+      setError(error.response?.data?.error || 'Login failed, please try again');
     } finally {
       setLoginLoading(false);
     }
@@ -44,26 +51,28 @@ const WorkingLogin = () => {
 
   const handleRegister = async () => {
     if (!formData.username || !formData.password) {
-      alert('请填写用户名和密码');
+      setError('Please enter username and password');
       return;
     }
 
     setRegisterLoading(true);
+    setError('');
 
     try {
       const registerData = {
         username: formData.username,
-        email: formData.username + '@example.com', // 使用用户名作为邮箱
+        email: formData.username + '@example.com', // Use username as email
         password: formData.password
       };
 
       const response = await register(registerData);
-      console.log('注册成功:', response.data);
-      alert('注册成功！已自动登录');
+      console.log('Registration successful:', response.data);
+      // Clear form
+      setFormData({ username: '', password: '' });
       navigate('/dashboard');
     } catch (error) {
-      console.error('注册失败:', error);
-      alert(`注册失败: ${error.response?.data?.error || error.message}`);
+      console.error('Registration failed:', error);
+      setError(error.response?.data?.error || 'Registration failed, please try again');
     } finally {
       setRegisterLoading(false);
     }
@@ -93,7 +102,7 @@ const WorkingLogin = () => {
           marginBottom: '10px',
           fontWeight: 'bold'
         }}>
-          个人财务管理系统
+          Personal Finance Manager
         </h1>
 
         <h2 style={{
@@ -103,8 +112,22 @@ const WorkingLogin = () => {
           marginBottom: '40px',
           fontWeight: 'normal'
         }}>
-          请登录您的账户
+          Please login to your account
         </h2>
+
+        {error && (
+          <div style={{
+            backgroundColor: '#f8d7da',
+            color: '#721c24',
+            padding: '15px',
+            borderRadius: '8px',
+            marginBottom: '20px',
+            border: '1px solid #f5c6cb',
+            fontSize: '14px'
+          }}>
+            {error}
+          </div>
+        )}
 
         <div>
           <div style={{ marginBottom: '25px' }}>
@@ -115,14 +138,14 @@ const WorkingLogin = () => {
               fontWeight: '600',
               fontSize: '16px'
             }}>
-              用户名或邮箱:
+              Username or Email:
             </label>
             <input
               type="text"
               name="username"
               value={formData.username}
               onChange={handleChange}
-              placeholder="请输入用户名或邮箱"
+              placeholder="Please enter username or email"
               required
               style={{
                 width: '100%',
@@ -147,14 +170,14 @@ const WorkingLogin = () => {
               fontWeight: '600',
               fontSize: '16px'
             }}>
-              密码:
+              Password:
             </label>
             <input
               type="password"
               name="password"
               value={formData.password}
               onChange={handleChange}
-              placeholder="请输入密码"
+              placeholder="Please enter password"
               required
               style={{
                 width: '100%',
@@ -192,11 +215,11 @@ const WorkingLogin = () => {
               onMouseOver={(e) => !loginLoading && (e.target.style.backgroundColor = '#2980b9')}
               onMouseOut={(e) => !loginLoading && (e.target.style.backgroundColor = '#3498db')}
             >
-              {loginLoading ? '登录中...' : '登录'}
+              {loginLoading ? 'Logging in...' : 'Login'}
             </button>
           </div>
 
-          <div style={{ marginBottom: '25px' }}>
+        <div style={{ marginBottom: '25px' }}>
             <button
               type="button"
               onClick={handleRegister}
@@ -217,46 +240,15 @@ const WorkingLogin = () => {
               onMouseOver={(e) => !registerLoading && (e.target.style.backgroundColor = '#219a52')}
               onMouseOut={(e) => !registerLoading && (e.target.style.backgroundColor = '#27ae60')}
             >
-              {registerLoading ? '注册中...' : '立即注册'}
+              {registerLoading ? 'Registering...' : 'Register'}
             </button>
           </div>
 
           <div style={{ textAlign: 'center' }}>
             <p style={{ color: '#7f8c8d', fontSize: '14px' }}>
-              使用上方按钮登录或注册新账户
+              Login or register a new account using the buttons above
             </p>
           </div>
-        </div>
-
-        <div style={{
-          backgroundColor: '#ecf0f1',
-          padding: '25px',
-          borderRadius: '10px',
-          marginTop: '30px',
-          border: '1px solid #bdc3c7'
-        }}>
-          <h3 style={{
-            color: '#2c3e50',
-            marginBottom: '15px',
-            fontSize: '16px',
-            fontWeight: 'bold'
-          }}>
-            测试账户信息:
-          </h3>
-          <p style={{ margin: '8px 0', color: '#34495e', fontSize: '14px' }}>
-            <strong>用户名:</strong> test
-          </p>
-          <p style={{ margin: '8px 0', color: '#34495e', fontSize: '14px' }}>
-            <strong>密码:</strong> 123456
-          </p>
-          <p style={{
-            margin: '15px 0 0 0',
-            color: '#7f8c8d',
-            fontSize: '13px',
-            fontStyle: 'italic'
-          }}>
-            💡 提示：使用上述测试账户或创建新账户
-          </p>
         </div>
       </div>
     </div>

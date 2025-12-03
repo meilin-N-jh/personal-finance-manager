@@ -6,6 +6,7 @@ import {
   CreditCard,
   TrendingUp,
   PieChart,
+  Tag,
   User,
   Menu,
   X,
@@ -28,6 +29,7 @@ const Layout = () => {
     { name: 'Transactions', href: '/transactions', icon: CreditCard },
     { name: 'Accounts', href: '/accounts', icon: TrendingUp },
     { name: 'Budgets', href: '/budgets', icon: PieChart },
+    { name: 'Categories', href: '/categories', icon: Tag },
     { name: 'Profile', href: '/profile', icon: User },
   ];
 

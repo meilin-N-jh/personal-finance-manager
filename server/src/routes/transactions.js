@@ -5,11 +5,16 @@ const { authenticateToken } = require('../middleware/auth');
 
 const router = express.Router();
 
+// Helper function to get the last day of a month
+function getLastDayOfMonth(year, month) {
+  return new Date(year, month, 0).getDate(); // month is 1-based, Date constructor uses 0-based
+}
+
 // Get all transactions for a user
 router.get('/', authenticateToken, async (req, res) => {
   try {
     const userId = req.user.id;
-    const { limit = 50, offset = 0, category_id, account_id, type } = req.query;
+    const { limit = 50, offset = 0, category_id, account_id, type, startDate, endDate, year, month } = req.query;
 
     let whereClause = 'WHERE t.user_id = $1';
     const params = [userId];
@@ -33,6 +38,28 @@ router.get('/', authenticateToken, async (req, res) => {
       params.push(type);
     }
 
+    if (startDate) {
+      paramCount++;
+      whereClause += ` AND t.date >= $${paramCount}`;
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      paramCount++;
+      whereClause += ` AND t.date <= $${paramCount}`;
+      params.push(endDate);
+    }
+
+    // If year and month are specified, filter by that month
+    if (year && month) {
+      const lastDay = getLastDayOfMonth(parseInt(year), parseInt(month));
+      const monthStart = `${year}-${month.padStart(2, '0')}-01`;
+      const monthEnd = `${year}-${month.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      whereClause += ` AND t.date >= $${paramCount + 1} AND t.date <= $${paramCount + 2}`;
+      params.push(monthStart, monthEnd);
+      paramCount += 2;
+    }
+
     const result = await query(
       `SELECT t.*, c.name as category_name, a.name as account_name
        FROM transactions t
@@ -53,7 +80,7 @@ router.get('/', authenticateToken, async (req, res) => {
     );
 
     res.json({
-      transactions: result.rows,
+      data: result.rows,
       total: parseInt(countResult.rows[0].total),
       limit: parseInt(limit),
       offset: parseInt(offset)
@@ -62,6 +89,69 @@ router.get('/', authenticateToken, async (req, res) => {
     console.error('Get transactions error:', error);
     res.status(500).json({
       error: 'Failed to retrieve transactions'
+    });
+  }
+});
+
+// Get transaction statistics
+router.get('/stats/summary', authenticateToken, async (req, res) => {
+  try {
+    const userId = req.user.id;
+    const { startDate, endDate, period = 'month', year, month } = req.query;
+
+    let dateFilter = "1=1";
+    const queryParams = [userId];
+
+    // If year and month are specified, filter by that month
+    if (year && month) {
+      const lastDay = getLastDayOfMonth(parseInt(year), parseInt(month));
+      const monthStart = `${year}-${month.padStart(2, '0')}-01`;
+      const monthEnd = `${year}-${month.padStart(2, '0')}-${lastDay.toString().padStart(2, '0')}`;
+      dateFilter = "AND date >= $2 AND date <= $3";
+      queryParams.push(monthStart, monthEnd);
+    } else if (startDate && endDate) {
+      // If specific dates are provided, use them
+      dateFilter = "AND date >= $2 AND date <= $3";
+      queryParams.push(startDate, endDate);
+    } else {
+      // Otherwise use period
+      switch (period) {
+        case 'week':
+          dateFilter = "AND date >= CURRENT_DATE - INTERVAL '7 days'";
+          break;
+        case 'month':
+          dateFilter = "AND date >= CURRENT_DATE - INTERVAL '1 month'";
+          break;
+        case 'year':
+          dateFilter = "AND date >= CURRENT_DATE - INTERVAL '1 year'";
+          break;
+      }
+    }
+
+    const result = await query(
+      `SELECT
+         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
+         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
+         COUNT(*) as transaction_count
+       FROM transactions
+       WHERE user_id = $1 ${dateFilter}`,
+      queryParams
+    );
+
+    const stats = result.rows[0];
+
+    res.json({
+      data: {
+        totalIncome: parseFloat(stats.total_income) || 0,
+        totalExpenses: parseFloat(stats.total_expenses) || 0,
+        netIncome: (parseFloat(stats.total_income) || 0) - (parseFloat(stats.total_expenses) || 0),
+        transactionCount: parseInt(stats.transaction_count) || 0
+      }
+    });
+  } catch (error) {
+    console.error('Get transaction stats error:', error);
+    res.status(500).json({
+      error: 'Failed to retrieve transaction statistics'
     });
   }
 });
@@ -287,54 +377,6 @@ router.delete('/:id', authenticateToken, async (req, res) => {
     console.error('Delete transaction error:', error);
     res.status(500).json({
       error: 'Failed to delete transaction'
-    });
-  }
-});
-
-// Get transaction statistics
-router.get('/stats/summary', authenticateToken, async (req, res) => {
-  try {
-    const userId = req.user.id;
-    const { period = 'month' } = req.query;
-
-    let dateFilter;
-    switch (period) {
-      case 'week':
-        dateFilter = "date >= date('now', '-7 days')";
-        break;
-      case 'month':
-        dateFilter = "date >= date('now', '-1 month')";
-        break;
-      case 'year':
-        dateFilter = "date >= date('now', '-1 year')";
-        break;
-      default:
-        dateFilter = "1=1";
-    }
-
-    const result = await query(
-      `SELECT
-         SUM(CASE WHEN type = 'income' THEN amount ELSE 0 END) as total_income,
-         SUM(CASE WHEN type = 'expense' THEN amount ELSE 0 END) as total_expenses,
-         COUNT(*) as transaction_count
-       FROM transactions
-       WHERE user_id = $1 AND ${dateFilter}`,
-      [userId]
-    );
-
-    const stats = result.rows[0];
-
-    res.json({
-      total_income: parseFloat(stats.total_income) || 0,
-      total_expenses: parseFloat(stats.total_expenses) || 0,
-      net_income: (parseFloat(stats.total_income) || 0) - (parseFloat(stats.total_expenses) || 0),
-      transaction_count: parseInt(stats.transaction_count) || 0,
-      period
-    });
-  } catch (error) {
-    console.error('Get transaction stats error:', error);
-    res.status(500).json({
-      error: 'Failed to retrieve transaction statistics'
     });
   }
 });

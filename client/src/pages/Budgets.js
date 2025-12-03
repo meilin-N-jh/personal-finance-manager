@@ -11,6 +11,12 @@ const Budgets = () => {
   const [showModal, setShowModal] = useState(false);
   const [editingBudget, setEditingBudget] = useState(null);
   const [budgetSummary, setBudgetSummary] = useState({ totalBudgeted: 0, totalSpent: 0, totalRemaining: 0 });
+  const [availablePeriods, setAvailablePeriods] = useState({ budgetPeriods: [], transactionPeriods: [] });
+
+  // Filter state
+  const [selectedYear, setSelectedYear] = useState(new Date().getFullYear());
+  const [selectedMonth, setSelectedMonth] = useState(new Date().getMonth() + 1);
+  const [selectedPeriod, setSelectedPeriod] = useState('all');
 
   const [formData, setFormData] = useState({
     categoryId: '',
@@ -23,14 +29,27 @@ const Budgets = () => {
   useEffect(() => {
     fetchBudgets();
     fetchCategories();
-    fetchBudgetSummary();
-  }, []);
+    fetchAvailablePeriods();
+  }, [selectedYear, selectedMonth, selectedPeriod]);
 
   const fetchBudgets = async () => {
     try {
       setLoading(true);
-      const data = await budgetService.getBudgets();
-      setBudgets(data.data || []);
+      const params = {};
+      if (selectedPeriod !== 'all') {
+        params.period = selectedPeriod;
+      }
+      if (selectedMonth && selectedPeriod === 'all') {
+        params.year = selectedYear;
+        params.month = selectedMonth;
+      }
+      const data = await budgetService.getBudgets(params);
+      const budgetsList = data.data || [];
+      setBudgets(budgetsList);
+
+      // Calculate summary from the fetched budgets
+      const summary = calculateBudgetSummary(budgetsList);
+      setBudgetSummary(summary);
     } catch (error) {
       setError('Failed to load budgets');
       console.error('Error fetching budgets:', error);
@@ -48,16 +67,33 @@ const Budgets = () => {
     }
   };
 
-  const fetchBudgetSummary = async () => {
+  const calculateBudgetSummary = (budgetsList) => {
+    const summary = budgetsList.reduce((acc, budget) => {
+      const spent = parseFloat(budget.spent || 0);
+      const budgeted = parseFloat(budget.amount || 0);
+      const remaining = budgeted - spent;
+
+      // Ensure all values are numbers
+      const safeSpent = isNaN(spent) ? 0 : spent;
+      const safeBudgeted = isNaN(budgeted) ? 0 : budgeted;
+      const safeRemaining = isNaN(remaining) ? 0 : remaining;
+
+      return {
+        totalBudgeted: acc.totalBudgeted + safeBudgeted,
+        totalSpent: acc.totalSpent + safeSpent,
+        totalRemaining: acc.totalRemaining + safeRemaining
+      };
+    }, { totalBudgeted: 0, totalSpent: 0, totalRemaining: 0 });
+
+    return summary;
+  };
+
+  const fetchAvailablePeriods = async () => {
     try {
-      const data = await budgetService.getBudgetSummary();
-      setBudgetSummary({
-        totalBudgeted: data.totalBudgeted || 0,
-        totalSpent: data.totalSpent || 0,
-        totalRemaining: data.totalRemaining || 0
-      });
+      const data = await budgetService.getBudgetPeriods();
+      setAvailablePeriods(data);
     } catch (error) {
-      console.error('Error fetching budget summary:', error);
+      console.error('Error fetching available periods:', error);
     }
   };
 
@@ -79,7 +115,6 @@ const Budgets = () => {
         await budgetService.createBudget(apiData);
       }
       fetchBudgets();
-      fetchBudgetSummary();
       closeModal();
     } catch (error) {
       setError(editingBudget ? 'Failed to update budget' : 'Failed to create budget');
@@ -92,7 +127,6 @@ const Budgets = () => {
       try {
         await budgetService.deleteBudget(id);
         fetchBudgets();
-        fetchBudgetSummary();
       } catch (error) {
         setError('Failed to delete budget');
         console.error('Error deleting budget:', error);
@@ -157,6 +191,14 @@ const Budgets = () => {
     return labels[period] || period;
   };
 
+  const getMonthName = (month) => {
+    const months = [
+      'January', 'February', 'March', 'April', 'May', 'June',
+      'July', 'August', 'September', 'October', 'November', 'December'
+    ];
+    return months[month - 1] || '';
+  };
+
   if (loading) {
     return (
       <div className="px-4 py-6 sm:px-0">
@@ -175,49 +217,126 @@ const Budgets = () => {
       </div>
 
       {/* Budget Summary Cards */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-8">
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-blue-100 rounded-full">
-              <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-              </svg>
+      <div className="mb-8">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-blue-100 rounded-full">
+                <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 7h6m0 10v-3m-3 3h.01M9 17h.01M9 14h.01M12 14h.01M15 11h.01M12 11h.01M9 11h.01M7 21h10a2 2 0 002-2V5a2 2 0 00-2-2H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Budgeted</p>
+                <p className="text-xl font-semibold text-blue-600">{formatCurrency(budgetSummary.totalBudgeted)}</p>
+              </div>
             </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Budgeted</p>
-              <p className="text-xl font-semibold text-blue-600">{formatCurrency(budgetSummary.totalBudgeted)}</p>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-red-100 rounded-full">
+                <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Spent</p>
+                <p className="text-xl font-semibold text-red-600">{formatCurrency(budgetSummary.totalSpent)}</p>
+              </div>
+            </div>
+          </div>
+
+          <div className="bg-white rounded-lg shadow p-6">
+            <div className="flex items-center">
+              <div className="p-3 bg-green-100 rounded-full">
+                <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+              </div>
+              <div className="ml-4">
+                <p className="text-sm text-gray-600">Total Remaining</p>
+                <p className={`text-xl font-semibold ${budgetSummary.totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                  {formatCurrency(budgetSummary.totalRemaining)}
+                </p>
+              </div>
             </div>
           </div>
         </div>
+      </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-red-100 rounded-full">
-              <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M20 12H4" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Spent</p>
-              <p className="text-xl font-semibold text-red-600">{formatCurrency(budgetSummary.totalSpent)}</p>
-            </div>
+      {/* Filter Controls */}
+      <div className="bg-white rounded-lg shadow p-6 mb-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+          {/* Year Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Year
+            </label>
+            <select
+              value={selectedYear}
+              onChange={(e) => setSelectedYear(parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              {/* Generate years from current year - 2 to current year + 2 */}
+              {Array.from({ length: 5 }, (_, i) => new Date().getFullYear() - 2 + i).map(year => (
+                <option key={year} value={year}>
+                  {year}
+                </option>
+              ))}
+            </select>
+          </div>
+
+          {/* Month Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Month
+            </label>
+            <select
+              value={selectedMonth}
+              onChange={(e) => setSelectedMonth(parseInt(e.target.value))}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="">All Months</option>
+              <option value="1">January</option>
+              <option value="2">February</option>
+              <option value="3">March</option>
+              <option value="4">April</option>
+              <option value="5">May</option>
+              <option value="6">June</option>
+              <option value="7">July</option>
+              <option value="8">August</option>
+              <option value="9">September</option>
+              <option value="10">October</option>
+              <option value="11">November</option>
+              <option value="12">December</option>
+            </select>
+          </div>
+
+          {/* Period Filter */}
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-2">
+              Period Type
+            </label>
+            <select
+              value={selectedPeriod}
+              onChange={(e) => setSelectedPeriod(e.target.value)}
+              className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-indigo-500 focus:border-indigo-500"
+            >
+              <option value="all">All Periods</option>
+              <option value="monthly">Monthly</option>
+              <option value="yearly">Yearly</option>
+              <option value="weekly">Weekly</option>
+              <option value="daily">Daily</option>
+            </select>
           </div>
         </div>
 
-        <div className="bg-white rounded-lg shadow p-6">
-          <div className="flex items-center">
-            <div className="p-3 bg-green-100 rounded-full">
-              <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8c-1.657 0-3 .895-3 2s1.343 2 3 2 3 .895 3 2-1.343 2-3 2m0-8c1.11 0 2.08.402 2.599 1M12 8V7m0 1v8m0 0v1m0-1c-1.11 0-2.08-.402-2.599-1M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
-              </svg>
-            </div>
-            <div className="ml-4">
-              <p className="text-sm text-gray-600">Total Remaining</p>
-              <p className={`text-xl font-semibold ${budgetSummary.totalRemaining >= 0 ? 'text-green-600' : 'text-red-600'}`}>
-                {formatCurrency(budgetSummary.totalRemaining)}
-              </p>
-            </div>
-          </div>
+        {/* Current Filter Display */}
+        <div className="mt-4 text-sm text-gray-600">
+          Showing budgets for: {selectedPeriod !== 'all' ? `${selectedPeriod} periods` :
+            selectedMonth ? `${getMonthName(selectedMonth)} ${selectedYear}` :
+            `${selectedYear}`}
         </div>
       </div>
 
@@ -305,17 +424,17 @@ const Budgets = () => {
                     <div className="grid grid-cols-3 gap-4 text-sm">
                       <div>
                         <span className="text-gray-600">Budgeted:</span>
-                        <p className="font-medium text-gray-900">{formatCurrency(budget.amount)}</p>
+                        <p className="font-medium text-red-600">{formatCurrency(budget.amount)}</p>
                       </div>
                       <div>
                         <span className="text-gray-600">Spent:</span>
-                        <p className={`font-medium ${isOverBudget ? 'text-red-600' : 'text-gray-900'}`}>
+                        <p className="font-medium text-red-600">
                           {formatCurrency(budget.spent || 0)}
                         </p>
                       </div>
                       <div>
                         <span className="text-gray-600">Remaining:</span>
-                        <p className={`font-medium ${budget.amount - (budget.spent || 0) >= 0 ? 'text-green-600' : 'text-red-600'}`}>
+                        <p className="font-medium text-red-600">
                           {formatCurrency(budget.amount - (budget.spent || 0))}
                         </p>
                       </div>
