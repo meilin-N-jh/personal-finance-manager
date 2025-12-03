@@ -2,7 +2,6 @@ import axios from 'axios';
 
 const API_BASE_URL = process.env.REACT_APP_API_URL || '/api';
 
-// Create axios instance
 const api = axios.create({
   baseURL: API_BASE_URL,
   headers: {
@@ -36,21 +35,36 @@ api.interceptors.response.use(
   }
 );
 
-const authService = {
-  // Register new user
-  register: (userData) => {
-    return api.post('/auth/register', userData);
+const categoryService = {
+  // Get all categories
+  getCategories: async () => {
+    const response = await api.get('/categories');
+    return response.data;
   },
 
-  // Login user
-  login: (credentials) => {
-    return api.post('/auth/login', credentials);
+  // Get single category
+  getCategory: async (id) => {
+    const response = await api.get(`/categories/${id}`);
+    return response.data;
   },
 
-  // Verify token
-  verifyToken: () => {
-    return api.get('/auth/verify');
+  // Create new category
+  createCategory: async (categoryData) => {
+    const response = await api.post('/categories', categoryData);
+    return response.data;
+  },
+
+  // Update category
+  updateCategory: async (id, categoryData) => {
+    const response = await api.put(`/categories/${id}`, categoryData);
+    return response.data;
+  },
+
+  // Delete category
+  deleteCategory: async (id) => {
+    const response = await api.delete(`/categories/${id}`);
+    return response.data;
   },
 };
 
-export default authService;
+export default categoryService;

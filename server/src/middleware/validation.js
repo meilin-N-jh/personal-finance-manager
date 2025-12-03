@@ -69,11 +69,11 @@ const categorySchema = Joi.object({
 
 // Budget validation schema
 const budgetSchema = Joi.object({
-  categoryId: Joi.number().integer().positive().required(),
+  category_id: Joi.number().integer().positive().required(),
   amount: Joi.number().positive().required(),
   period: Joi.string().valid('monthly', 'yearly').required(),
-  startDate: Joi.date().iso().required(),
-  endDate: Joi.date().iso().min(Joi.ref('startDate')).required()
+  start_date: Joi.date().iso().required(),
+  end_date: Joi.date().iso().min(Joi.ref('start_date')).required()
 });
 
 // Transaction query parameters validation
